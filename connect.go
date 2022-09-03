@@ -14,11 +14,13 @@ type Config struct {
 
 // Sets more client options
 type Connection struct {
-	MinPoolSize            uint64 // The minimum number of connections allowed in the driver's connection pool to each server. (default is 0)
-	MaxPoolSize            uint64 // The maximum number of connections allowed in the driver's connection pool to each server. (default is 100)
-	MaxConnecting          uint64 // The maximum number of connections a connection pool may establish simultaneously. (default is 2) (not recommended greater than 100)
-	MaxConnIdleTime        int    // In milliseconds, The maximum amount of time that a connection will remain idle in a connection pool before it is removed from the pool and closed. (default is 0, meaning a connection can remain unused indefinitely)
-	ServerSelectionTimeout int    // In milliseconds, How long the driver will wait to find an available, suitable server to execute an operation. (default is 30 seconds)
-	SocketTimeout          int    // In milliseconds, How long the driver will wait for a socket read or write to return before returning a network error. (default is 0, means no timeout is used and socket operations can block indefinitely)
-	Timeout                int    // In milliseconds, Amount of time that a single operation run on this client can execute before returning an error. (default value is nil, meaning operations do not inherit a timeout from the client)
+	MinPoolSize             uint64 // The minimum number of connections allowed in the driver's connection pool to each server. (default is 0)
+	MaxPoolSize             uint64 // The maximum number of connections allowed in the driver's connection pool to each server. (default is 100)
+	MaxConnecting           uint64 // The maximum number of connections a connection pool may establish simultaneously. (default is 2) (not recommended greater than 100)
+	MaxConnIdleTime         int    // In milliseconds, The maximum amount of time that a connection will remain idle in a connection pool before it is removed from the pool and closed. (default is 0, meaning a connection can remain unused indefinitely)
+	ServerSelectionTimeout  int    // In milliseconds, How long the driver will wait to find an available, suitable server to execute an operation. (default is 30 seconds)
+	SocketTimeout           int    // In milliseconds, How long the driver will wait for a socket read or write to return before returning a network error. (default is 0, means no timeout is used and socket operations can block indefinitely)
+	Timeout                 int    // In milliseconds, Amount of time that a single operation run on this client can execute before returning an error. (default value is nil, meaning operations do not inherit a timeout from the client)
+	ReadConcernWithMajority bool   // Majority specifies that the query should return the instance's most recent data acknowledged as having been written to a majority of members in the replica set.
+	ReadSecondaryPreferred  bool   // In most situations, operation read from secondary members but if no secondary members are available, operations read from the primary on sharded clusters.
 }
