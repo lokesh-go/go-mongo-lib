@@ -3,3 +3,16 @@
 # go-mongo-lib
 
 A wrapper mongodb library using Golang.
+
+### Handled connection fields:
+
+ - Connection pool size
+ - Max connecting
+ - Max connection idel time
+ - Server selection timeout
+ - Socket timeout
+ - Timeout
+ - Read concern majority
+ - Read secondary preferred
+ - Write concern majority
+ - Write concern timeout
