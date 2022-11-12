@@ -1,5 +1,18 @@
 package mongodb
 
+import (
+	"context"
+	"crypto/tls"
+	"errors"
+	"time"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+)
+
 // Config contains all properties required for creating a connection
 type Config struct {
 	Hosts       []string    // Database server hosts
@@ -28,4 +41,130 @@ type Connection struct {
 	ReadSecondaryPreferred   bool   // In most situations, operation read from secondary members but if no secondary members are available, operations read from the primary on sharded clusters.
 	WriteConcernWithMajority bool   // Majority of nodes must acknowledge write operations before the operation returns.
 	WriteConcernTimeout      int    // In milliseconds, How long write operations should wait for the correct number of nodes to acknowledge the operation.
+}
+
+// Intialise and return new mongodb client connection
+func New(config *Config) (dbClient *Client, err error) {
+	// Connects
+	dbClient, err = config.connect()
+	if err != nil {
+		return nil, err
+	}
+
+	// Returns
+	return dbClient, nil
+}
+
+// Connect
+func (c *Config) connect() (dbClient *Client, err error) {
+	// Assigns hosts
+	mongoConnOptions := &options.ClientOptions{
+		Hosts: c.Hosts,
+	}
+
+	// Checks TLS
+	if c.TLSEnabled {
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		mongoConnOptions.TLSConfig = tlsConfig
+	}
+
+	// Checks auth
+	if c.AuthEnabled {
+		creds := &options.Credential{
+			Username:   c.User,
+			Password:   c.Password,
+			AuthSource: c.AuthSource,
+		}
+		mongoConnOptions.Auth = creds
+	}
+
+	// Checks & apply connection config
+	if c.Connection != nil {
+		// Sets min pool size
+		if c.Connection.MinPoolSize != 0 {
+			mongoConnOptions.SetMinPoolSize(c.Connection.MinPoolSize)
+		}
+
+		// Sets max pool size
+		if c.Connection.MaxPoolSize != 0 {
+			mongoConnOptions.SetMaxPoolSize(c.Connection.MaxPoolSize)
+		}
+
+		// Sets max connecting
+		if c.Connection.MaxConnecting != 0 {
+			mongoConnOptions.SetMaxConnecting(c.Connection.MaxConnecting)
+		}
+
+		// Sets max connection idle time
+		if c.Connection.MaxConnIdleTime != 0 {
+			mongoConnOptions.SetMaxConnIdleTime(time.Duration(c.Connection.MaxConnIdleTime) * time.Millisecond)
+		}
+
+		// Sets server selection timeout
+		if c.Connection.ServerSelectionTimeout != 0 {
+			mongoConnOptions.SetServerSelectionTimeout(time.Duration(c.Connection.ServerSelectionTimeout) * time.Millisecond)
+		}
+
+		// Sets socket timeout
+		if c.Connection.SocketTimeout != 0 {
+			mongoConnOptions.SetSocketTimeout(time.Duration(c.Connection.SocketTimeout) * time.Millisecond)
+		}
+
+		// Sets timeout
+		if c.Connection.Timeout != 0 {
+			mongoConnOptions.SetTimeout(time.Duration(c.Connection.Timeout) * time.Millisecond)
+		}
+
+		// Sets read concern majority
+		if c.Connection.ReadConcernWithMajority {
+			majorityLevel := readconcern.Majority().GetLevel()
+			rc := readconcern.New(readconcern.Level(majorityLevel))
+			mongoConnOptions.SetReadConcern(rc)
+		}
+
+		// Sets read secondary preferred
+		if c.Connection.ReadSecondaryPreferred {
+			rp := readpref.SecondaryPreferred()
+			mongoConnOptions.SetReadPreference(rp)
+		}
+
+		// Sets write concern with majority
+		if c.Connection.WriteConcernWithMajority {
+			wc := writeconcern.New(writeconcern.WMajority())
+
+			// Sets write conecern timeout
+			if c.Connection.WriteConcernTimeout != 0 {
+				wc.WithOptions(writeconcern.WTimeout(time.Duration(c.Connection.WriteConcernTimeout) * time.Millisecond))
+			}
+			mongoConnOptions.SetWriteConcern(wc)
+		}
+	}
+
+	// Gets new mongodb client
+	client, err := mongo.NewClient(mongoConnOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect client with timeout
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err = client.Connect(ctx)
+	if err != nil {
+		return nil, errors.New("client connection failed " + err.Error())
+	}
+
+	// Ping
+	err = client.Ping(ctx, readpref.Primary())
+	if err != nil {
+		return nil, errors.New("client ping failed ->" + err.Error())
+	}
+
+	// Sets client connection
+	dbClient = &Client{}
+	dbClient.database = client.Database(c.Database)
+
+	// Returns
+	return dbClient, nil
 }
